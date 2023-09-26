@@ -2,6 +2,8 @@ import cv2
 import os
 import sys
 import numpy as np
+from mqtt_pub import MQTT_PUB
+
 
 # Function to determine if an image is blurry
 def is_blurry(img, threshold=1000):
@@ -35,8 +37,9 @@ def is_blurry(img, threshold=1000):
     else:
         return False
     
+def main(pub, image_folder):
+    pub_client = pub.start()
 
-def main(image_folder):
     for filename in (os.listdir(image_folder)):
         if filename.endswith(('.jpg', '.png', '.jpeg')):
             image_path = os.path.join(image_folder, filename)
@@ -44,10 +47,22 @@ def main(image_folder):
             # Read the image
             img = cv2.imread(image_path)
             if not (is_blurry(img, 1000)):
-                cv2.imwrite(f"../imgs/filtered/{filename.replace('png', 'jpg')}", img)
-            # else:
-            #     cv2.imwrite(filename, img)
+                img_path = f"../imgs/filtered/{filename.replace('png', 'jpg')}"
+                cv2.imwrite(img_path, img)
+                pub.publish(pub_client, f"{img_path}")
+
 
 if __name__ == "__main__":
     image_folder = sys.argv[1]
-    main(image_folder)
+    broker = '172.17.0.3'
+    port = 1883
+    topic = "image/filter"
+    client_id = 'blur-filter'
+    username = 'emqx'
+    password = 'public'
+
+    pub = MQTT_PUB(broker=broker, port=port, topic=topic,
+                    client_id=client_id, username=username,
+                    password=password)
+    
+    main(pub, image_folder)
