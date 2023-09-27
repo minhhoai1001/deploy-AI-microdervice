@@ -3,17 +3,13 @@ import sys
 import cv2
 import numpy as np
 from yoloseg import YOLOSeg
-from mqtt_sub import MQTT_SUB
-from mqtt_pub import MQTT_PUB
+from mqtt_sub_pub import MQTT_SUB_PUB
 
-def main(sub, pub):
+def main(mqtt):
     # Initialize YOLOv5 Instance Segmentator
     model_path = "models/yolov8n-salmon-seg.onnx"
     yoloseg = YOLOSeg(model_path, conf_thres=0.5, iou_thres=0.3)
 
-    sub_client = sub.start()
-    pub_client = pub.start()
-    
     def on_message(client, userdata, msg):
         image_path = msg.payload.decode()
         print(image_path)
@@ -35,25 +31,30 @@ def main(sub, pub):
                 img_path = f"../imgs/mask_fish/{image_path.split('/')[-1]}"
                 cv2.imwrite(img_path, crop_mask_img)
 
-                # pub.publish(pub_client, f"{img_path}")
+                result = client.publish(topic_pub, f"{img_path}")
+                status = result[0]
+                if status == 0:
+                    print(f"Send msg to topic `{topic_pub}`")
+                else:
+                    print(f"Failed to send message to topic {topic_pub}")
+
+    client = mqtt.connect_mqtt()
+    client.subscribe(topic_sub)
+    client.loop_start()
 
     while True:
-        sub_client.on_message = on_message
+        client.on_message = on_message
+    
 
 if __name__ == "__main__":
-    broker = '172.17.0.3'
-    port = 1883
-    client_id = 'fish-seg-1'
-    username = 'emqx'
-    password = 'public'
-    topic_sub = "image/filter"
-    topic_pub = "mask/fish"
+    broker      = '172.17.0.2'
+    port        = 1883
+    topic_sub   = "image/filter"
+    topic_pub   = "mask/fish"
+    client_id   = 'fish-seg-mqtt-1'
+    username    = 'emqx'
+    password    = 'public'
     
-    sub = MQTT_SUB(broker=broker, port=port, topic=topic_sub,
-                    client_id=client_id, username=username,
-                    password=password)
-    
-    pub = MQTT_PUB(broker=broker, port=port, topic=topic_pub,
-                client_id=client_id, username=username,
-                password=password)
-    main(sub, pub)
+    mqtt = MQTT_SUB_PUB(broker=broker, port=port, client_id=client_id, username=username, password=password)
+
+    main(mqtt)

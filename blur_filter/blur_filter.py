@@ -54,7 +54,7 @@ def main(pub, image_folder):
 
 if __name__ == "__main__":
     image_folder = sys.argv[1]
-    broker = '172.17.0.3'
+    broker = '172.17.0.2'
     port = 1883
     topic = "image/filter"
     client_id = 'blur-filter'
