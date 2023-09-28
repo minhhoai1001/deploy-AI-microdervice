@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  emqx-mqtt:
+    image: emqx/emqx:5.2.1
+    networks:
+      nw_containers:
+        ipv4_address: 10.5.0.2
+    ports:
+      - "1883:1883"
+      - "18083:18083"
+
+  fish-filter:
+    image: opencv:filter
+    volumes:
+      - app-volume:/data
+    links:
+      - emqx-mqtt
+    networks:
+      nw_containers:
+        ipv4_address: 10.5.0.3
+
+networks:
+  nw_containers:
+    driver: bridge
+    ipam:
+        config:
+            - subnet: "10.5.0.0/24"
+              gateway: "10.5.0.1"
+
+volumes:
+  app-volume:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/hoaitran/dev/AI-microservice/imgs
+      o: bind

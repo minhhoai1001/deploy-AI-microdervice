@@ -47,14 +47,14 @@ def main(pub, image_folder):
             # Read the image
             img = cv2.imread(image_path)
             if not (is_blurry(img, 1000)):
-                img_path = f"../imgs/filtered/{filename.replace('png', 'jpg')}"
+                img_path = f"/data/filtered/{filename.replace('png', 'jpg')}"
                 cv2.imwrite(img_path, img)
                 pub.publish(pub_client, f"{img_path}")
 
 
 if __name__ == "__main__":
     image_folder = sys.argv[1]
-    broker = '172.17.0.3'
+    broker = '10.5.0.2'
     port = 1883
     topic = "image/filter"
     client_id = 'blur-filter'

@@ -7,20 +7,23 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip
 
-# Install Opencv
-RUN pip3 install opencv-python-headless
+# Install ONNX Runtime
+RUN pip3 install onnxruntime
 
 # Install Paho mqtt
 RUN pip3 install paho-mqtt
+
+# Install Opencv
+RUN pip3 install opencv-python-headless
 
 # Clean up
 RUN apt-get autoremove -y && apt-get clean
 
 # Set the working directory
-WORKDIR /app
+WORKDIR /home
 
 # Copy your application code to the container
-COPY . /app
+# COPY . /app
 
 # Run your application
-CMD ["python3", "blur_filter.py", "/data/src"]
+# CMD ["python3", "your_app.py"]

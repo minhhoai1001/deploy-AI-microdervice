@@ -103,7 +103,7 @@ def draw_object(img, obj):
     return cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
     
 def main(sub):
-    model_path = "models/yolov8m-lice-det.onnx"
+    model_path = "models/yolov8n-lice-det.onnx"
     yolov8_det = YOLOv8(model_path, conf_thres=0.2, iou_thres=0.3)
 
     sub_client = sub.start()

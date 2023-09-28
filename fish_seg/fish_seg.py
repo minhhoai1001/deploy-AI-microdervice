@@ -45,7 +45,7 @@ def main(mqtt):
     
 
 if __name__ == "__main__":
-    broker      = '172.17.0.3'
+    broker      = '172.17.0.2'
     port        = 1883
     topic_sub   = "image/filter"
     topic_pub   = "mask/fish"
