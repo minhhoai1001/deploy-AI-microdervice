@@ -10,11 +10,11 @@ RUN apt-get update && apt-get install -y \
 # Install ONNX Runtime
 RUN pip3 install onnxruntime
 
-# Install pillow
-RUN pip3 install pillow
-
 # Install Paho mqtt
 RUN pip3 install paho-mqtt
+
+# Install Opencv
+RUN pip3 install opencv-python-headless
 
 # Clean up
 RUN apt-get autoremove -y && apt-get clean

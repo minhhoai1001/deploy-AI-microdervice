@@ -1,5 +1,3 @@
-import os
-import sys
 import cv2
 import numpy as np
 from yoloseg import YOLOSeg
@@ -47,7 +45,7 @@ def main(mqtt):
     
 
 if __name__ == "__main__":
-    broker      = '172.17.0.2'
+    broker      = '172.17.0.3'
     port        = 1883
     topic_sub   = "image/filter"
     topic_pub   = "mask/fish"

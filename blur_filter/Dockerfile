@@ -7,8 +7,8 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip
 
-# Install pillow
-RUN pip3 install pillow numpy
+# Install Opencv
+RUN pip3 install opencv-python-headless
 
 # Install Paho mqtt
 RUN pip3 install paho-mqtt
