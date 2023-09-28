@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from yolov8 import YOLOv8
 import collections
+from mqtt_sub import MQTT_SUB
+
 
 Object = collections.namedtuple('Object', ['id', 'score', 'bbox'])
 
@@ -100,41 +102,56 @@ def draw_object(img, obj):
     x1, y1, x2, y2 = obj.bbox
     return cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
     
-def main(image_folder):
+def main(sub):
     model_path = "models/yolov8m-lice-det.onnx"
     yolov8_det = YOLOv8(model_path, conf_thres=0.2, iou_thres=0.3)
 
-    for filename in (os.listdir(image_folder)):
-        if filename.endswith(('.jpg', '.png', '.jpeg')):
-            objects = []
-            image_path = os.path.join(image_folder, filename)
-            img = cv2.imread(image_path)
+    sub_client = sub.start()
 
-            img_size = img.shape[:2]
-            h, w = img_size
+    def on_message(client, userdata, msg):
+        objects = []
+        image_path = msg.payload.decode()
+        print(image_path)
+        img = cv2.imread(image_path)
 
-            for tile_location in tiles_location_gen(img_size, tile_size=640, overlap=100):
-                x1, y1, x2, y2 = tile_location
-                tile = img[y1:y2, x1:x2]
-                h_tile, w_tile = tile.shape[:2]
-                if(h_tile < 640 or w_tile<640 ):
-                    blank_img = np.zeros((640, 640, 3), dtype = np.uint8)
-                    blank_img[0:h_tile, 0:w_tile] = tile
-                    tile = blank_img
+        img_size = img.shape[:2]
+        h, w = img_size
 
-                boxes, scores, class_ids = yolov8_det(tile)
-                for class_id, box, score in zip(class_ids, boxes, scores):
-                    bbox = reposition_bounding_box(box, tile_location)
-                    bbox = bbox.astype(int)
-                    objects.append(Object(class_id, score, bbox))
+        for tile_location in tiles_location_gen(img_size, tile_size=640, overlap=100):
+            x1, y1, x2, y2 = tile_location
+            tile = img[y1:y2, x1:x2]
+            h_tile, w_tile = tile.shape[:2]
+            if(h_tile < 640 or w_tile<640 ):
+                blank_img = np.zeros((640, 640, 3), dtype = np.uint8)
+                blank_img[0:h_tile, 0:w_tile] = tile
+                tile = blank_img
 
-            if len(objects) == 0: continue
+            boxes, scores, class_ids = yolov8_det(tile)
+            for class_id, box, score in zip(class_ids, boxes, scores):
+                bbox = reposition_bounding_box(box, tile_location)
+                bbox = bbox.astype(int)
+                objects.append(Object(class_id, score, bbox))
+
+        if len(objects) > 0:
             idxs = non_max_suppression(objects, 0.3)
             for id in idxs:
                 img = draw_object(img, objects[id])
             
-            cv2.imwrite(f"../imgs/lice_detect/{filename.replace('png', 'jpg')}", img)
-
+            img_path = f"../imgs/lice_detect/{image_path.split('/')[-1]}"
+            cv2.imwrite(img_path, img)
+    
+    while True:
+        sub_client.on_message = on_message
+        
 if __name__ == "__main__":
-    image_folder = sys.argv[1]
-    main(image_folder)
+    broker      = '172.17.0.2'
+    port        = 1883
+    topic_sub   = "mask/fish"
+    client_id   = 'lice-det-mqtt-1'
+    username    = 'emqx'
+    password    = 'public'
+
+    sub = MQTT_SUB(broker=broker, port=port, topic=topic_sub,
+                        client_id=client_id, username=username, password=password)
+    
+    main(sub)
