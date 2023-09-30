@@ -1,9 +1,11 @@
 import cv2
 import os
 import sys
+import time
 import numpy as np
-from mqtt_pub import MQTT_PUB
-
+# from mqtt_pub import MQTT_PUB
+# import paho.mqtt.publish as publish
+from paho.mqtt import client as mqtt_client
 
 # Function to determine if an image is blurry
 def is_blurry(img, threshold=1000):
@@ -36,33 +38,42 @@ def is_blurry(img, threshold=1000):
         return True
     else:
         return False
-    
-def main(pub, image_folder):
-    pub_client = pub.start()
 
-    for filename in (os.listdir(image_folder)):
-        if filename.endswith(('.jpg', '.png', '.jpeg')):
-            image_path = os.path.join(image_folder, filename)
 
-            # Read the image
-            img = cv2.imread(image_path)
-            if not (is_blurry(img, 1000)):
-                img_path = f"/data/filtered/{filename.replace('png', 'jpg')}"
-                cv2.imwrite(img_path, img)
-                pub.publish(pub_client, f"{img_path}")
-
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("Connected to MQTT Broker success!")
 
 if __name__ == "__main__":
     image_folder = sys.argv[1]
-    broker = '10.5.0.2'
-    port = 1883
-    topic = "image/filter"
-    client_id = 'blur-filter'
-    username = 'emqx'
-    password = 'public'
+    broker      = os.environ.get("BROKER")
+    port        = os.environ.get("PORT")
+    topic       = os.environ.get("TOPIC")
+    client_id   = os.environ.get("CLIENT_ID")
+    username    = os.environ.get("USER_NAME")
+    password    = os.environ.get("PASS_WORD")
 
-    pub = MQTT_PUB(broker=broker, port=port, topic=topic,
-                    client_id=client_id, username=username,
-                    password=password)
-    
-    main(pub, image_folder)
+    print("Image filter is start")
+
+    client = mqtt_client.Client(client_id)
+    client.on_connect = on_connect
+    retry_interval = 2  # seconds
+
+    while True:
+        try:
+            client.username_pw_set(username, password)
+            client.connect(broker, int(port))
+            while True:
+                for filename in (os.listdir(image_folder)):
+                    if filename.endswith(('.jpg', '.png', '.jpeg')):
+                        image_path = os.path.join(image_folder, filename)
+                        # Read the image
+                        img = cv2.imread(image_path)
+                        if not (is_blurry(img, 1000)):
+                            img_path = f"/data/filtered/{filename.replace('png', 'jpg')}"
+                            cv2.imwrite(img_path, img)
+                            client.publish(topic, img_path)
+
+        except Exception as e:
+            print(f"Connection attempt failed. Retrying in {retry_interval} seconds...")
+            time.sleep(retry_interval)

@@ -3,30 +3,91 @@ version: '3'
 services:
   emqx-mqtt:
     image: emqx/emqx:5.2.1
+    environment:
+    - "EMQX_NAME=emqx"
+    - "EMQX_HOST=lice-counting.emqx.io"
     networks:
       nw_containers:
-        ipv4_address: 10.5.0.2
+        aliases:
+        - lice-counting.emqx.io
     ports:
       - "1883:1883"
       - "18083:18083"
+    volumes:
+      - vol-emqx-data:/opt/emqx/data
+      - vol-emqx-etc:/opt/emqx/etc
+      - vol-emqx-log:/opt/emqx/log
 
   fish-filter:
     image: opencv:filter
+    environment:
+      BROKER: "lice-counting.emqx.io"
+      PORT: 1883
+      USER_NAME: "emqx"
+      PASS_WORD: "public"
+      TOPIC: "image/filter"
+      CLIENT_ID: "blur-filter"
     volumes:
       - app-volume:/data
-    links:
+    depends_on:
       - emqx-mqtt
+    restart: on-failure
     networks:
-      nw_containers:
-        ipv4_address: 10.5.0.3
+      - nw_containers
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+  fish-seg:
+    image: opencv-onnx:fishseg
+    environment:
+      BROKER: "lice-counting.emqx.io"
+      PORT: 1883
+      USER_NAME: "emqx"
+      PASS_WORD: "public"
+      CLIENT_ID: "fish-seg-mqtt-1"
+      TOPIC_SUB: "image/filter"
+      TOPIC_PUB: "mask/fish"
+    volumes:
+      - app-volume:/data
+    depends_on:
+      - emqx-mqtt
+    restart: on-failure
+    networks:
+      - nw_containers
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 650M
+
+  lice-det:
+    image: opencv-onnx:licedet
+    environment:
+      BROKER: "lice-counting.emqx.io"
+      PORT: 1883
+      USER_NAME: "emqx"
+      PASS_WORD: "public"
+      CLIENT_ID: "lice-det-mqtt-1"
+      TOPIC: "mask/fish"
+    volumes:
+      - app-volume:/data
+    depends_on:
+      - emqx-mqtt
+    restart: on-failure
+    networks:
+      - nw_containers
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 256M
 
 networks:
   nw_containers:
     driver: bridge
-    ipam:
-        config:
-            - subnet: "10.5.0.0/24"
-              gateway: "10.5.0.1"
 
 volumes:
   app-volume:
@@ -35,3 +96,12 @@ volumes:
       type: none
       device: /home/hoaitran/dev/AI-microservice/imgs
       o: bind
+
+  vol-emqx-data:
+    name: foo-emqx-data
+
+  vol-emqx-etc:
+    name: foo-emqx-etc
+
+  vol-emqx-log:
+    name: foo-emqx-log

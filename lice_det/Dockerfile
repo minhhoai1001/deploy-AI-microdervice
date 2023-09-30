@@ -20,10 +20,13 @@ RUN pip3 install opencv-python-headless
 RUN apt-get autoremove -y && apt-get clean
 
 # Set the working directory
-WORKDIR /home
+WORKDIR /app
+
+# Set mount to volume
+RUN mkdir /data
 
 # Copy your application code to the container
-# COPY . /app
+COPY . /app
 
 # Run your application
-# CMD ["python3", "your_app.py"]
+CMD ["python3", "lice_det.py"]

@@ -19,6 +19,9 @@ RUN apt-get autoremove -y && apt-get clean
 # Set the working directory
 WORKDIR /app
 
+# Set mount to volume
+RUN mkdir /data
+
 # Copy your application code to the container
 COPY . /app
 
