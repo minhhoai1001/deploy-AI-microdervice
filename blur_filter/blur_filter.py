@@ -3,8 +3,6 @@ import os
 import sys
 import time
 import numpy as np
-# from mqtt_pub import MQTT_PUB
-# import paho.mqtt.publish as publish
 from paho.mqtt import client as mqtt_client
 
 # Function to determine if an image is blurry

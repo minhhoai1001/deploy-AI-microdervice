@@ -4,7 +4,7 @@ import time
 import numpy as np
 from yolov8 import YOLOv8
 import collections
-# from mqtt_sub import MQTT_SUB
+from functools import partial
 from paho.mqtt import client as mqtt_client
 
 Object = collections.namedtuple('Object', ['id', 'score', 'bbox'])
@@ -99,111 +99,72 @@ def non_max_suppression(objects, threshold):
 def draw_object(img, obj):
     x1, y1, x2, y2 = obj.bbox
     return cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
-    
-def main(sub):
-    model_path = "models/yolov8n-lice-det.onnx"
-    yolov8_det = YOLOv8(model_path, conf_thres=0.2, iou_thres=0.3)
 
-    sub_client = sub.start()
-
-    def on_message(client, userdata, msg):
-        objects = []
-        image_path = msg.payload.decode()
-        print(image_path)
-        img = cv2.imread(image_path)
-
-        img_size = img.shape[:2]
-        h, w = img_size
-
-        for tile_location in tiles_location_gen(img_size, tile_size=640, overlap=100):
-            x1, y1, x2, y2 = tile_location
-            tile = img[y1:y2, x1:x2]
-            h_tile, w_tile = tile.shape[:2]
-            if(h_tile < 640 or w_tile<640 ):
-                blank_img = np.zeros((640, 640, 3), dtype = np.uint8)
-                blank_img[0:h_tile, 0:w_tile] = tile
-                tile = blank_img
-
-            boxes, scores, class_ids = yolov8_det(tile)
-            for class_id, box, score in zip(class_ids, boxes, scores):
-                bbox = reposition_bounding_box(box, tile_location)
-                bbox = bbox.astype(int)
-                objects.append(Object(class_id, score, bbox))
-
-        if len(objects) > 0:
-            idxs = non_max_suppression(objects, 0.3)
-            for id in idxs:
-                img = draw_object(img, objects[id])
-            
-            img_path = f"../imgs/lice_detect/{image_path.split('/')[-1]}"
-            cv2.imwrite(img_path, img)
-    
-    while True:
-        sub_client.on_message = on_message
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("Connected to MQTT Broker success!")
 
-if __name__ == "__main__":
+def detect_on_message(yolov8_det, client, userdata, msg):
+    objects = []
+    image_path = msg.payload.decode()
+    img = cv2.imread(image_path)
 
-    broker      = os.environ.get("BROKER")
-    port        = os.environ.get("PORT")
-    topic       = os.environ.get("TOPIC")
-    client_id   = os.environ.get("CLIENT_ID")
-    username    = os.environ.get("USER_NAME")
-    password    = os.environ.get("PASS_WORD")
+    img_size = img.shape[:2]
 
+    for tile_location in tiles_location_gen(img_size, tile_size=640, overlap=100):
+        x1, y1, x2, y2 = tile_location
+        tile = img[y1:y2, x1:x2]
+        h_tile, w_tile = tile.shape[:2]
+        if(h_tile < 640 or w_tile<640 ):
+            blank_img = np.zeros((640, 640, 3), dtype = np.uint8)
+            blank_img[0:h_tile, 0:w_tile] = tile
+            tile = blank_img
+
+        boxes, scores, class_ids = yolov8_det(tile)
+        for class_id, box, score in zip(class_ids, boxes, scores):
+            bbox = reposition_bounding_box(box, tile_location)
+            bbox = bbox.astype(int)
+            objects.append(Object(class_id, score, bbox))
+
+    if len(objects) > 0:
+        idxs = non_max_suppression(objects, 0.3)
+        for id in idxs:
+            img = draw_object(img, objects[id])
+        
+        img_path = f"/data/lice_detect/{image_path.split('/')[-1]}"
+        cv2.imwrite(img_path, img)
+
+
+def main(mqtt_config):
     model_path = "models/yolov8n-lice-det.onnx"
     yolov8_det = YOLOv8(model_path, conf_thres=0.2, iou_thres=0.3)
 
-    def on_message(client, userdata, msg):
-        objects = []
-        image_path = msg.payload.decode()
-        print(image_path)
-        img = cv2.imread(image_path)
-
-        img_size = img.shape[:2]
-        h, w = img_size
-
-        for tile_location in tiles_location_gen(img_size, tile_size=640, overlap=100):
-            x1, y1, x2, y2 = tile_location
-            tile = img[y1:y2, x1:x2]
-            h_tile, w_tile = tile.shape[:2]
-            if(h_tile < 640 or w_tile<640 ):
-                blank_img = np.zeros((640, 640, 3), dtype = np.uint8)
-                blank_img[0:h_tile, 0:w_tile] = tile
-                tile = blank_img
-
-            boxes, scores, class_ids = yolov8_det(tile)
-            for class_id, box, score in zip(class_ids, boxes, scores):
-                bbox = reposition_bounding_box(box, tile_location)
-                bbox = bbox.astype(int)
-                objects.append(Object(class_id, score, bbox))
-
-        if len(objects) > 0:
-            idxs = non_max_suppression(objects, 0.3)
-            for id in idxs:
-                img = draw_object(img, objects[id])
-            
-            img_path = f"/data/lice_detect/{image_path.split('/')[-1]}"
-            cv2.imwrite(img_path, img)
-
-    print("Lice Detection is start")
-
-    client = mqtt_client.Client(client_id)
+    client = mqtt_client.Client(mqtt_config["client_id"])
     client.on_connect = on_connect
     retry_interval = 2  # seconds
     
     while True:
         try:
-            client.username_pw_set(username, password)
-            client.connect(broker, int(port))
-            client.subscribe(topic)
+            client.username_pw_set(mqtt_config["username"], mqtt_config["password"])
+            client.connect(mqtt_config["broker"], mqtt_config["port"])
+            client.subscribe(mqtt_config["topic"])
             client.loop_start()
             while True:
-               client.on_message = on_message
+               on_message_callback = partial(detect_on_message, yolov8_det)
+               client.on_message = on_message_callback
 
         except Exception as e:
             print(f"Connection attempt failed. Retrying in {retry_interval} seconds...")
             time.sleep(retry_interval)
+
+if __name__ == "__main__":
+    mqtt_config = {
+        "broker":   os.environ.get("BROKER"),
+        "port":     int(os.environ.get("PORT")),
+        "topic":    os.environ.get("TOPIC"),
+        "client_id": os.environ.get("CLIENT_ID"),
+        "username": os.environ.get("USER_NAME"),
+        "password": os.environ.get("PASS_WORD")
+    }
+    main(mqtt_config)
