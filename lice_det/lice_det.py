@@ -2,6 +2,7 @@ import os
 import cv2
 import time
 import numpy as np
+import datetime
 from yolov8 import YOLOv8
 import collections
 from functools import partial
@@ -105,10 +106,19 @@ def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("Connected to MQTT Broker success!")
 
+def get_datetime():
+    current_time = datetime.datetime.now()
+    formatted_time = current_time.strftime("%Y%m%d_%H:%M:%S")
+
+    return formatted_time
+
 def detect_on_message(yolov8_det, client, userdata, msg):
     objects = []
-    image_path = msg.payload.decode()
-    img = cv2.imread(image_path)
+    # image_path = msg.payload.decode()
+    # img = cv2.imread(image_path)
+    image_bytes = msg.payload
+    image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+    img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
     img_size = img.shape[:2]
 
@@ -132,7 +142,7 @@ def detect_on_message(yolov8_det, client, userdata, msg):
         for id in idxs:
             img = draw_object(img, objects[id])
         
-        img_path = f"/data/lice_detect/{image_path.split('/')[-1]}"
+        img_path = f"/data/lice_detect/{get_datetime()}.jpg"
         cv2.imwrite(img_path, img)
 
 

@@ -2,7 +2,9 @@ import cv2
 import os
 import sys
 import time
+import logging
 import numpy as np
+import datetime
 from paho.mqtt import client as mqtt_client
 
 # Function to determine if an image is blurry
@@ -40,7 +42,13 @@ def is_blurry(img, threshold=1000):
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print("Connected to MQTT Broker success!")
+        logging.info("Connected to MQTT Broker success!")
+
+def get_datetime():
+    current_time = datetime.datetime.now()
+    formatted_time = current_time.strftime("%Y%m%d_%H:%M:%S")
+
+    return formatted_time
 
 if __name__ == "__main__":
     image_folder = sys.argv[1]
@@ -51,7 +59,7 @@ if __name__ == "__main__":
     username    = os.environ.get("USER_NAME")
     password    = os.environ.get("PASS_WORD")
 
-    print("Image filter is start")
+    logging.info("Image filter is start")
 
     client = mqtt_client.Client(client_id)
     client.on_connect = on_connect
@@ -68,10 +76,20 @@ if __name__ == "__main__":
                         # Read the image
                         img = cv2.imread(image_path)
                         if not (is_blurry(img, 1000)):
-                            img_path = f"/data/filtered/{filename.replace('png', 'jpg')}"
-                            cv2.imwrite(img_path, img)
-                            client.publish(topic, img_path)
+                            # img_path = f"/data/filtered/{get_datetime()}.jpg"
+                            # cv2.imwrite(img_path, img)
+                            h, w, _     = img.shape
+                            half_w      = w // 2
+                            img_left    = img[:, :half_w, :]
+                            img_right   = img[:, half_w:, :]
+                            _, left_encoded     = cv2.imencode(".jpg", img_left)
+                            _, right_encoded    = cv2.imencode(".jpg", img_right)
+                            left_bytes  = left_encoded.tobytes()
+                            right_bytes = right_encoded.tobytes()
+                            client.publish(topic, payload=left_bytes)
+                            client.publish(topic, payload=right_bytes)
+
 
         except Exception as e:
-            print(f"Connection attempt failed. Retrying in {retry_interval} seconds...")
+            logging.error(f"Connection attempt failed. Retrying in {retry_interval} seconds...")
             time.sleep(retry_interval)
