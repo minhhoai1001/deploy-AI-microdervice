@@ -1,11 +1,9 @@
-FROM ubuntu:20.04
+FROM python:3.8-slim
 
 ENV DEBIAN_FRONTEND="noninteractive"
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip
+RUN apt-get update
 
 # Install ONNX Runtime
 RUN pip3 install onnxruntime
@@ -29,4 +27,4 @@ RUN mkdir /data
 COPY . /app
 
 # Run your application
-CMD ["python3", "fish_seg.py"]
+CMD ["python3", "fish_seg_filter.py"]

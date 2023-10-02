@@ -18,37 +18,36 @@ services:
       - vol-emqx-etc:/opt/emqx/etc
       - vol-emqx-log:/opt/emqx/log
 
-  fish-filter:
-    image: opencv:filter
-    environment:
-      BROKER: "lice-counting.emqx.io"
-      PORT: 1883
-      USER_NAME: "emqx"
-      PASS_WORD: "public"
-      TOPIC: "image/filter"
-      CLIENT_ID: "blur-filter"
-    volumes:
-      - app-volume:/data
-    depends_on:
-      - emqx-mqtt
-    restart: on-failure
-    networks:
-      - nw_containers
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 128M
+  # fish-filter:
+  #   image: opencv:filter
+  #   environment:
+  #     BROKER: "lice-counting.emqx.io"
+  #     PORT: 1883
+  #     USER_NAME: "emqx"
+  #     PASS_WORD: "public"
+  #     TOPIC: "image/filter"
+  #     CLIENT_ID: "blur-filter"
+  #   volumes:
+  #     - app-volume:/data
+  #   depends_on:
+  #     - emqx-mqtt
+  #   restart: on-failure
+  #   networks:
+  #     - nw_containers
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 128M
 
   fish-seg:
-    image: opencv-onnx:fishseg
+    image: opencv-onnx:fishsegfilter
     environment:
       BROKER: "lice-counting.emqx.io"
       PORT: 1883
       USER_NAME: "emqx"
       PASS_WORD: "public"
       CLIENT_ID: "fish-seg-mqtt-1"
-      TOPIC_SUB: "image/filter"
       TOPIC_PUB: "mask/fish"
     volumes:
       - app-volume:/data
@@ -60,8 +59,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 650M
+          cpus: '4'
+          memory: 512M
 
   lice-det:
     image: opencv-onnx:licedet

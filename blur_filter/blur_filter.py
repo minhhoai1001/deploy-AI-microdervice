@@ -12,13 +12,9 @@ def is_blurry(img, threshold=1000):
 
     # Convert the image to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    h, w = gray.shape[:2]
-
-    # Crop center with 80%
-    crop_img = gray[int(h*0.1):int(h*0.9), int(w*0.1):int(w*0.9)]
     
     # Resized to 720x1280
-    resize_img = cv2.resize(crop_img, (1280, 720))
+    resize_img = cv2.resize(gray, (1280, 720))
 
     # Apply Laplace function
     dst = cv2.Laplacian(resize_img, cv2.CV_16S, ksize=3)
@@ -46,9 +42,7 @@ def on_connect(client, userdata, flags, rc):
 
 def get_datetime():
     current_time = datetime.datetime.now()
-    formatted_time = current_time.strftime("%Y%m%d_%H:%M:%S")
-
-    return formatted_time
+    return current_time.strftime("%Y%m%d_%H:%M:%S")
 
 if __name__ == "__main__":
     image_folder = sys.argv[1]
@@ -75,20 +69,17 @@ if __name__ == "__main__":
                         image_path = os.path.join(image_folder, filename)
                         # Read the image
                         img = cv2.imread(image_path)
-                        if not (is_blurry(img, 1000)):
-                            # img_path = f"/data/filtered/{get_datetime()}.jpg"
-                            # cv2.imwrite(img_path, img)
-                            h, w, _     = img.shape
-                            half_w      = w // 2
-                            img_left    = img[:, :half_w, :]
-                            img_right   = img[:, half_w:, :]
-                            _, left_encoded     = cv2.imencode(".jpg", img_left)
-                            _, right_encoded    = cv2.imencode(".jpg", img_right)
-                            left_bytes  = left_encoded.tobytes()
-                            right_bytes = right_encoded.tobytes()
-                            client.publish(topic, payload=left_bytes)
-                            client.publish(topic, payload=right_bytes)
-
+                        # Crop center with 80%
+                        h, w = img.shape[:2]
+                        crop_img = img[int(h*0.1):int(h*0.9), int(w*0.1):int(w*0.9)]
+                        if not (is_blurry(crop_img, 1000)):
+                            resize = cv2.resize(crop_img, (2048, 1080))
+                            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+                            _, image_encoded = cv2.imencode('.jpg', resize, encode_param)
+                            image_bytes = image_encoded.tobytes()
+                            # logging.error(f"size byte: {len(image_bytes)}")
+                            client.publish(topic, payload=image_bytes)
+                            time.sleep(1)
 
         except Exception as e:
             logging.error(f"Connection attempt failed. Retrying in {retry_interval} seconds...")

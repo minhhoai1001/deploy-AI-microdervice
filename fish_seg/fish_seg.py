@@ -8,49 +8,39 @@ import logging
 import datetime
 from paho.mqtt import client as mqtt_client
 
-received_image1 = None
-received_image2 = None
-count = 0
-
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print("Connected to MQTT Broker success!")  
+        print("Connected to MQTT Broker success!") 
 
 def get_datetime():
     current_time = datetime.datetime.now()
-    formatted_time = current_time.strftime("%Y%m%d_%H:%M:%S")
-
-    return formatted_time 
+    return current_time.strftime("%Y%m%d_%H:%M:%S")
 
 def seg_on_message(yoloseg, topic_pub, client, userdata, msg):
-    global received_image1, received_image2, count
+    image_bytes = msg.payload
+    image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+    img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
-    # Check the length of received_image1
-    if count == 0:
-        received_image1 = np.frombuffer(msg.payload, dtype=np.uint8)
-        count = 1
-    elif count == 1:
-        received_image2 = np.frombuffer(msg.payload, dtype=np.uint8)
+    # if os.path.isfile(img_path):
+    #     img = cv2.imread(img_path)
+    #     os.remove(img_path)
+    logging.info("Get images")
+    # Detect Objects
+    boxes, scores, class_ids, masks = yoloseg(img)
+    mask_img = img.copy()
 
-        image_array1 = cv2.imdecode(received_image1, cv2.IMREAD_COLOR)
-        image_array2 = cv2.imdecode(received_image2, cv2.IMREAD_COLOR)
-        # Merge the two images into one
-        img = np.hstack((image_array1, image_array2))
-        count = 0
-        # Detect Objects
-        boxes, scores, class_ids, masks = yoloseg(img)
-        mask_img = img.copy()
-
-        for i, (box, class_id) in enumerate(zip(boxes, class_ids)):
-            x1, y1, x2, y2 = box.astype(int)
-            if (x2 - x1 > 1920) or (y2 - y1 > 1080):
-                crop_mask = masks[i][y1:y2, x1:x2]
-                crop_mask_img = mask_img[y1:y2, x1:x2]
-                crop_mask_img[np.where(crop_mask == 0)] = (0, 0, 0)
-
-                _, image_encoded = cv2.imencode('.jpg', crop_mask_img)
-                image_bytes = image_encoded.tobytes()
-                client.publish(topic_pub, image_bytes)
+    for i, (box, class_id) in enumerate(zip(boxes, class_ids)):
+        x1, y1, x2, y2 = box.astype(int)
+        logging.info(f"Size mask: {x2-x1}-{y2-y1}")
+        if (x2 - x1 > 1024) or (y2 - y1 > 540):
+            crop_mask = masks[i][y1:y2, x1:x2]
+            crop_mask_img = mask_img[y1:y2, x1:x2]
+            crop_mask_img[np.where(crop_mask == 0)] = (0, 0, 0)
+            # img_name = f"/data/filtered/{get_datetime()}.jpg"
+            # cv2.imwrite(img_name, crop_mask_img)
+            _, image_encoded = cv2.imencode('.jpg', crop_mask_img)
+            image_bytes = image_encoded.tobytes()
+            client.publish(topic_pub, image_bytes)
 
 
 def main(mqtt_config):
