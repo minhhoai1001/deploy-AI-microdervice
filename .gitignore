@@ -2,3 +2,4 @@ imgs
 *__pycache__
 fish_seg/models/*
 lice_det/models/*
+web-app/venv-app

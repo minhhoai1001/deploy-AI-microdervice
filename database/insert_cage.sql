@@ -1,0 +1,17 @@
+INSERT INTO cage (Farm_ID, Cage_Location, Cage_Name)
+VALUES  (1, 'Agotnes-Havroyna', '1A'),
+        (1, 'Agotnes-Havroyna', '1B'),
+        (1, 'Agotnes-Havroyna', '1C'),
+        (1, 'Agotnes-Havroyna', '1D'),
+        (1, 'Agotnes-Havroyna', '2A'),
+        (1, 'Agotnes-Havroyna', '2B'),
+        (1, 'Agotnes-Havroyna', '2C'),
+        (1, 'Agotnes-Havroyna', '2D'),
+        (1, 'Sekkingstad-Skogsvag', '1'),
+        (1, 'Sekkingstad-Skogsvag', '2'),
+        (1, 'Sekkingstad-Skogsvag', '3'),
+        (1, 'Sekkingstad-Skogsvag', '4'),
+        (2, 'NinhHoa-KhanhHoa', '1-1'),
+        (2, 'NinhHoa-KhanhHoa', '1-2'),
+        (2, 'NinhHoa-KhanhHoa', '2-1'),
+        (2, 'NinhHoa-KhanhHoa', '2-2');
